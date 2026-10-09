@@ -1,0 +1,67 @@
+'use client';
+import Link from 'next/link';
+import { Heading } from './ui';
+export const guide = [
+  ['/dashboard', 'Overview', 'Call volume, completion, captured leads, latency and recent calls.'],
+  [
+    '/dashboard/agents',
+    'Voice agents',
+    'Published and draft assistants. Start the create-agent flow.',
+  ],
+  [
+    '/dashboard/agents/agent-sophie',
+    'Agent editor',
+    'Prompt, greeting, voice, model, variables, tools and versions.',
+  ],
+  [
+    '/dashboard/test',
+    'Test studio',
+    'Simulated browser conversation with dialogue and tool results.',
+  ],
+  ['/dashboard/numbers', 'Phone numbers', 'Add sample carrier numbers and assign inbound agents.'],
+  ['/dashboard/calls', 'Call history', 'Search and filter conversations; export sample records.'],
+  [
+    '/dashboard/calls/CA_1048',
+    'Call details',
+    'Transcript, summary, execution results and latency.',
+  ],
+  ['/dashboard/tools', 'Tools', 'Configure API tools and inspect simulated execution.'],
+  [
+    '/dashboard/variables',
+    'Variables',
+    'Static and runtime context with a resolved prompt preview.',
+  ],
+  ['/dashboard/settings', 'Settings', 'Workspace, team, privacy preferences and audit log.'],
+  ['/login', 'Google sign-in', 'Google-only sign-in layout. The button opens a static preview.'],
+  ['/onboarding', 'Onboarding', 'Practice details and first workspace setup.'],
+];
+export function Guide() {
+  return (
+    <>
+      <Heading
+        title="Page-by-page design"
+        description="The complete V1 frontend journey, ready to explore."
+        actions={
+          <Link className="button primary" href="/dashboard">
+            Open dashboard
+          </Link>
+        }
+      />
+      <div className="note guide-note">
+        Avishkar lime #A1FF62 · charcoal #201D1D · grey #F4F4F4 · soft green #EDFFE1. Changes last
+        until refresh. Sample records and actions are for design review.
+      </div>
+      <div className="guidegrid">
+        {guide.map(([path, title, description], index) => (
+          <Link className="card" key={path} href={path}>
+            <span className="number">{String(index + 1).padStart(2, '0')}</span>
+            <div>
+              <h2>{title}</h2>
+              <p>{description}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </>
+  );
+}
