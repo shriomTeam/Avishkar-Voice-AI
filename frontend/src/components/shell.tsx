@@ -13,6 +13,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Brand, DemoBoundary } from './ui';
+import { useAuth } from '@/lib/auth/provider';
+import { initials } from '@/lib/auth/types';
 import { useDemo } from '@/lib/demo/provider';
 export const navigation = [
   { path: '/dashboard', name: 'Overview', icon: LayoutDashboard },
@@ -27,6 +29,7 @@ export const navigation = [
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { state } = useDemo();
+  const { auth } = useAuth();
   const active = navigation.find((item) =>
     item.path === '/dashboard' ? pathname === item.path : pathname.startsWith(item.path),
   );
@@ -60,14 +63,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="sidebottom">
           <div className="pilot">
-            <strong>V1 design prototype</strong>
+            <strong>Authenticated workspace</strong>
             <p>Sample data · simulated actions</p>
           </div>
           <Link className="profile" href="/dashboard/settings">
-            <div className="avatar dark">JD</div>
+            <div className="avatar dark">{initials(auth.user.display_name)}</div>
             <div>
-              <strong>Jamie Davis</strong>
-              <small>Workspace owner</small>
+              <strong>{auth.user.display_name}</strong>
+              <small>{auth.memberships[0]?.role || 'Member'}</small>
             </div>
           </Link>
         </div>
@@ -78,7 +81,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             Workspace <ChevronRight size={13} /> <strong>{active?.name || 'Page guide'}</strong>
           </span>
           <div className="headerRight">
-            <span className="badge pale">Design preview</span>
+            <span className="badge pale">Sample voice data</span>
             <Link className="button" href="/dashboard/test">
               <Mic size={15} />
               Test agent

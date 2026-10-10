@@ -20,7 +20,7 @@ The first full end-to-end test is on Thursday, so Monday to Wednesday work is bu
 | --- | --- | --- | --- | --- |
 | 1 | Mon | Agree the interfaces between app and agent (agent config in, call data out) and decide how phone numbers are added | Both | Not started |
 | 2 | Mon | Repo skeleton as a modular monolith, Docker Compose with Postgres, database schema | App and backend | Not started |
-| 3 | Mon | Google sign-in working end to end | App and backend | Not started |
+| 3 | Mon | Google sign-in working end to end | App and backend | Done: local Google login verified; production HTTPS validation pending |
 | 4 | Mon | GCP project, VM, firewall, private storage bucket, secrets store | Voice and infra | Not started |
 | 5 | Mon | Pipecat bot running in the browser with a fixed prompt | Voice and infra | Not started |
 | 6 | Tue | Compare 2-3 speech-to-text and text-to-speech options on the same recorded audio, confirm Gemini on Vertex works, then choose | Voice and infra | Not started |

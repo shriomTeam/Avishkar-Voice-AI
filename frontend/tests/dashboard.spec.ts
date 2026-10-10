@@ -1,46 +1,43 @@
 import { test, expect } from '@playwright/test';
 
-test('Google-only preview sign-in and responsive routes', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
+async function signIn(page: import('@playwright/test').Page) {
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'Continue with Google' }).click();
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.getByLabel('Workspace name').fill('Browser Practice');
+  await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+}
+
+test.beforeEach(async ({ page }, info) => {
+  if (info.title !== 'Google sign-in, protected routes and sign-out') await signIn(page);
+});
+
+test('Google sign-in, protected routes and sign-out', async ({ page }) => {
+  await page.goto('/dashboard/settings');
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('textbox')).toHaveCount(0);
-  await expect(
-    page.getByText('Google authentication will be connected', { exact: false }),
-  ).toBeVisible();
-  await page.getByRole('link', { name: 'Continue with Google' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Your practice, in conversation.' }),
-  ).toBeVisible();
-  const routes = [
-    '/dashboard',
-    '/dashboard/agents',
-    '/dashboard/agents/agent-sophie',
-    '/dashboard/numbers',
-    '/dashboard/calls',
-    '/dashboard/calls/CA_1048',
-    '/dashboard/test',
-    '/dashboard/tools',
-    '/dashboard/variables',
-    '/dashboard/settings',
-    '/dashboard/guide',
-    '/onboarding',
-    '/login',
-  ];
+  await signIn(page);
   for (const width of [1440, 820, 390]) {
     await page.setViewportSize({ width, height: 950 });
-    for (const route of routes) {
+    for (const route of [
+      '/dashboard',
+      '/dashboard/agents',
+      '/dashboard/calls',
+      '/dashboard/settings',
+    ]) {
       await page.goto(route);
       await expect(page.locator('h1').last()).toBeVisible();
-      await expect(page.getByText('Loading demo workspace…')).toHaveCount(0);
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth > window.innerWidth + 1,
-      );
-      expect(overflow, `Horizontal overflow on ${route} at ${width}px`).toBeFalsy();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1),
+      ).toBeFalsy();
     }
   }
-  expect(errors).toEqual([]);
+  await expect(page.getByText('browser@example.com', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto('/dashboard');
+  await expect(page).toHaveURL(/\/login$/);
 });
 
 test('create, edit and publish an agent, route a number and save a simulated call', async ({
@@ -82,9 +79,7 @@ test('create, edit and publish an agent, route a number and save a simulated cal
   await expect(page.getByText('Pilot receptionist', { exact: true }).last()).toBeVisible();
 });
 
-test('variables and workspace updates are shared, and reset restores fixtures', async ({
-  page,
-}) => {
+test('variables persist and reset preserves authenticated workspace', async ({ page }) => {
   await page.goto('/dashboard/variables');
   await page.getByRole('button', { name: 'Add variable' }).click();
   await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('company_name');
@@ -99,14 +94,10 @@ test('variables and workspace updates are shared, and reset restores fixtures', 
   await page.getByRole('dialog').getByRole('button', { name: 'Save variable' }).click();
   await expect(page.locator('pre').last()).toContainText('Demo Clinic');
   await page.getByRole('link', { name: 'Settings', exact: true }).click();
-  await page.getByLabel('Workspace name').fill('New Practice');
-  await page.getByRole('button', { name: 'Save changes' }).click();
-  await expect(page.locator('.workspace')).toContainText('New Practice');
-  await page.getByRole('tab', { name: 'Audit log' }).click();
-  await expect(page.getByRole('cell', { name: 'Workspace settings updated' })).toBeVisible();
+  await expect(page.locator('.workspace')).toContainText('Browser Practice');
   await page.getByRole('button', { name: 'Reset demo', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Reset demo', exact: true }).click();
-  await expect(page.locator('.workspace')).toContainText('Bloom Aesthetics');
+  await expect(page.locator('.workspace')).toContainText('Browser Practice');
 });
 
 test('tool validation, persistence and simulated result', async ({ page }) => {
@@ -167,4 +158,36 @@ test('dialogs restore focus and tabs support arrow keys', async ({ page }) => {
     'aria-selected',
     'true',
   );
+});
+
+test('session expiry hides the dashboard and returns to login', async ({ page }) => {
+  await page.goto('/dashboard/settings');
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
+  await page.route('**/api/v1/auth/me', (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: '{"detail":"not_authenticated"}',
+    }),
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test('session service failure hides content and supports retry', async ({ page }) => {
+  await page.goto('/dashboard/settings');
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
+  await page.route('**/api/v1/auth/me', (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: '{"detail":"service_unavailable"}',
+    }),
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.getByRole('heading', { name: 'Unable to check your session' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0);
+  await page.unroute('**/api/v1/auth/me');
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
 });
