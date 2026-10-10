@@ -1,5 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import type { AuthState } from '@/lib/auth/types';
+import { useCallback } from 'react';
 import type { DemoCommand, DemoState } from '@/lib/types';
 import { mockDashboardService } from '@/lib/services/mock-dashboard';
 const Context = createContext<{
@@ -11,7 +13,24 @@ const Context = createContext<{
   retry: () => void;
 } | null>(null);
 // State intentionally lasts until refresh; no browser persistence/authentication claim.
-export function DemoProvider({ children }: { children: ReactNode }) {
+export function DemoProvider({ children, identity }: { children: ReactNode; identity: AuthState }) {
+  const normalize = useCallback(
+    (sample: DemoState): DemoState => ({
+      ...sample,
+      workspace: {
+        ...sample.workspace,
+        name: identity.workspace?.name || '',
+        timezone: identity.workspace?.timezone || 'UTC',
+        phone: identity.workspace?.phone || '',
+        address: '',
+      },
+      variables: sample.variables.map((v) =>
+        v.name === 'company_name' ? { ...v, value: identity.workspace?.name || '' } : v,
+      ),
+      audit: sample.audit.map((event) => ({ ...event, actor: 'Sample actor' })),
+    }),
+    [identity],
+  );
   const [state, setState] = useState<DemoState | null>(null);
   const current = useRef<DemoState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,8 +42,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     mockDashboardService
       .load()
       .then((s) => {
-        current.current = s;
-        setState(s);
+        current.current = normalize(s);
+        setState(current.current);
       })
       .catch(() => setError('Could not load the demo workspace. Please retry.'));
   };
@@ -34,8 +53,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       .load()
       .then((s) => {
         if (!cancelled) {
-          current.current = s;
-          setState(s);
+          current.current = normalize(s);
+          setState(current.current);
         }
       })
       .catch(() => {
@@ -44,7 +63,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [normalize]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(''), 3500);
@@ -56,7 +75,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setBusy(true);
     setError(null);
     try {
-      const next = await mockDashboardService.execute(current.current, command);
+      let next = await mockDashboardService.execute(current.current, command);
+      if (command.type === 'reset') next = normalize(next);
+      else
+        next = {
+          ...next,
+          audit: next.audit.map((event, index) =>
+            index === 0 ? { ...event, actor: identity.user.display_name } : event,
+          ),
+        };
       current.current = next;
       setState(next);
       setToast(message);

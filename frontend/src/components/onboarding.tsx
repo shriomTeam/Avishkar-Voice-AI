@@ -1,8 +1,12 @@
 'use client';
-import Link from 'next/link';
-import { Brand, DemoBoundary } from './ui';
-import { WorkspaceForm } from './settings';
+import { useState } from 'react';
+import { Brand, Field, Select, FormError } from './ui';
+import { useAuth } from '@/lib/auth/provider';
+import { SignOut } from './sign-out';
 export function Onboarding() {
+  const { auth, write } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   return (
     <main className="onboarding-page">
       <Brand />
@@ -10,16 +14,50 @@ export function Onboarding() {
         <span className="badge pale">Workspace setup · 1 of 1</span>
         <h1 className="spaced">Let’s meet your practice.</h1>
         <p className="form-intro">
-          Your agents use these details to greet callers. Sample information only.
+          Welcome, {auth.user.display_name}. Create your workspace to get started.
         </p>
         <section className="panel">
-          <DemoBoundary>
-            <WorkspaceForm onboarding />
-          </DemoBoundary>
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              setBusy(true);
+              setError('');
+              try {
+                await write('/api/v1/workspaces', {
+                  name: String(data.get('name')).trim(),
+                  timezone: data.get('timezone'),
+                  phone: String(data.get('phone')).trim() || null,
+                });
+                window.location.replace('/dashboard');
+              } catch (error) {
+                setError(error instanceof Error ? error.message : 'Could not create workspace.');
+                setBusy(false);
+              }
+            }}
+          >
+            <Field label="Workspace name" name="name" required maxLength={80} pattern=".*\S.*" />
+            <Select label="Timezone" name="timezone" defaultValue="Asia/Kolkata">
+              <option>Asia/Kolkata</option>
+              <option>America/Los_Angeles</option>
+              <option>UTC</option>
+            </Select>
+            <Field
+              label="Callback number (E.164, optional)"
+              name="phone"
+              type="tel"
+              pattern="\+[1-9][0-9]{6,14}"
+              placeholder="+919876543210"
+            />
+            <FormError message={error} />
+            <button className="primary" disabled={busy}>
+              {busy ? 'Creating workspace…' : 'Create workspace'}
+            </button>
+          </form>
         </section>
-        <Link className="backlink spaced" href="/login">
-          ← Back to sign-in
-        </Link>
+        <div className="spaced">
+          <SignOut />
+        </div>
       </div>
     </main>
   );

@@ -32,7 +32,7 @@ export const guide = [
     'Static and runtime context with a resolved prompt preview.',
   ],
   ['/dashboard/settings', 'Settings', 'Workspace, team, privacy preferences and audit log.'],
-  ['/login', 'Google sign-in', 'Google-only sign-in layout. The button opens a static preview.'],
+  ['/login', 'Google sign-in', 'Sign in securely with Google to access your workspace.'],
   ['/onboarding', 'Onboarding', 'Practice details and first workspace setup.'],
 ];
 export function Guide() {

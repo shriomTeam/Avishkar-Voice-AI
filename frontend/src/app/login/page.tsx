@@ -1,8 +1,21 @@
-import Link from 'next/link';
 import { ArrowRight, AudioLines, ShieldCheck } from 'lucide-react';
 import { Brand } from '@/components/ui';
 export const metadata = { title: 'Sign in' };
-export default function Login() {
+export default async function Login({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+  const messages: Record<string, string> = {
+    not_configured:
+      'Google sign-in has not been configured yet. Please contact the workspace administrator.',
+    unavailable: 'Sign-in is temporarily unavailable. Please try again.',
+    invalid_login: 'This sign-in attempt expired or is invalid. Please start again.',
+    cancelled: 'Google sign-in was cancelled. You can try again.',
+    account_disabled: 'This account is disabled. Please contact the workspace administrator.',
+    failed: 'We could not complete sign-in. Please try again.',
+  };
   return (
     <main className="login-page">
       <section className="login-story">
@@ -39,7 +52,7 @@ export default function Login() {
           <span className="badge pale">Welcome to your workspace</span>
           <h1>Good to see you.</h1>
           <p>Sign in to manage your voice agents and conversations.</p>
-          <Link className="button google-button" href="/dashboard">
+          <a className="button google-button" href="/api/v1/auth/google/login">
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
               <path
                 fill="#4285F4"
@@ -57,19 +70,21 @@ export default function Login() {
             </svg>
             Continue with Google
             <ArrowRight size={16} />
-          </Link>
+          </a>
+          {error && (
+            <p className="form-error" role="alert">
+              {messages[error] || messages.failed}
+            </p>
+          )}
           <div className="login-preview">
             <ShieldCheck size={19} />
             <p>
-              <strong>Static preview</strong>
+              <strong>Secure Google sign-in</strong>
               <br />
-              This button opens the demo dashboard. Google authentication will be connected in the
-              backend phase.
+              Use your Google account to access your workspace. We only request your name and email;
+              voice data remains a sample preview.
             </p>
           </div>
-          <Link className="setup-link" href="/onboarding">
-            Preview workspace setup <ArrowRight size={14} />
-          </Link>
         </div>
         <p className="login-foot">Avishkar Voice · Simple, natural conversations.</p>
       </section>

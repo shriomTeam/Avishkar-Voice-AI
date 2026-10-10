@@ -1,83 +1,12 @@
 'use client';
-import Link from 'next/link';
 import { useState } from 'react';
 import { useDemo } from '@/lib/demo/provider';
+import { useAuth } from '@/lib/auth/provider';
+import { initials } from '@/lib/auth/types';
+import { SignOut } from './sign-out';
 import { dateLabel } from '@/lib/format';
-import { Heading, Tabs, Field, Select, Switch, Badge, ResetDemo, FormError } from './ui';
+import { Heading, Tabs, Select, Switch, Badge, ResetDemo } from './ui';
 import type { Workspace } from '@/lib/types';
-export function WorkspaceForm({ onboarding = false }: { onboarding?: boolean }) {
-  const { state, run, busy } = useDemo();
-  const [error, setError] = useState('');
-  const [done, setDone] = useState(false);
-  if (!state) return null;
-  return (
-    <form
-      onSubmit={async (event) => {
-        event.preventDefault();
-        const data = new FormData(event.currentTarget);
-        const name = String(data.get('name')).trim();
-        const phone = String(data.get('phone')).trim();
-        if (!name || !/^\+[1-9]\d{6,14}$/.test(phone)) {
-          setError('Enter a workspace name and valid E.164 callback number.');
-          return;
-        }
-        setError('');
-        const workspace = {
-          ...state.workspace,
-          name,
-          timezone: String(data.get('timezone')),
-          address: onboarding ? state.workspace.address : String(data.get('address')).trim(),
-          phone,
-        };
-        if (
-          await run(
-            { type: 'save-workspace', workspace },
-            onboarding ? 'Demo workspace ready' : 'Workspace settings saved',
-          )
-        )
-          setDone(true);
-      }}
-    >
-      <div className="formtwo">
-        <Field
-          label="Workspace name"
-          name="name"
-          required
-          maxLength={80}
-          pattern=".*\S.*"
-          defaultValue={state.workspace.name}
-        />
-        <Select label="Timezone" name="timezone" defaultValue={state.workspace.timezone}>
-          {['America/Los_Angeles', 'Asia/Kolkata', 'UTC'].map((zone) => (
-            <option key={zone}>{zone}</option>
-          ))}
-        </Select>
-      </div>
-      {!onboarding && (
-        <Field label="Practice address" name="address" defaultValue={state.workspace.address} />
-      )}
-      <Field
-        label="Callback number (E.164)"
-        name="phone"
-        type="tel"
-        required
-        pattern="\+[1-9][0-9]{6,14}"
-        defaultValue={state.workspace.phone}
-      />
-      <FormError message={error} />
-      <div className="actions">
-        <button className="primary" disabled={busy}>
-          {onboarding ? 'Create demo workspace' : 'Save changes'}
-        </button>
-        {done && onboarding && (
-          <Link className="button" href="/dashboard/agents">
-            Create your first agent →
-          </Link>
-        )}
-      </div>
-    </form>
-  );
-}
 function PrivacyForm({ workspace }: { workspace: Workspace }) {
   const { run, busy } = useDemo();
   const [privacy, setPrivacy] = useState(workspace);
@@ -138,6 +67,7 @@ function PrivacyForm({ workspace }: { workspace: Workspace }) {
 }
 export function Settings() {
   const { state } = useDemo();
+  const { auth } = useAuth();
   const [tab, setTab] = useState('Workspace');
   if (!state) return null;
   return (
@@ -158,15 +88,15 @@ export function Settings() {
       >
         <div className="panelHead" style={{ marginBottom: 0 }}>
           <div className="inline">
-            <div className="avatar dark">JD</div>
+            <div className="avatar dark">{initials(auth.user.display_name)}</div>
             <div>
-              <h2>Jamie Davis</h2>
-              <small>jamie@example.com · Workspace owner · Demo account</small>
+              <h2>{auth.user.display_name}</h2>
+              <small>
+                {auth.user.email} · {auth.memberships[0]?.role || 'Member'}
+              </small>
             </div>
           </div>
-          <Link className="button" href="/login">
-            Sign out
-          </Link>
+          <SignOut />
         </div>
       </section>
       <Tabs
@@ -179,13 +109,30 @@ export function Settings() {
           <>
             <h2>Workspace details</h2>
             <p className="form-intro">Practice information used across your agents.</p>
-            <WorkspaceForm key={JSON.stringify(state.workspace)} />
+            <div className="summarylist">
+              <div>
+                <span>Name</span>
+                <strong>{auth.workspace?.name}</strong>
+              </div>
+              <div>
+                <span>Timezone</span>
+                <strong>{auth.workspace?.timezone}</strong>
+              </div>
+              <div>
+                <span>Callback number</span>
+                <strong>{auth.workspace?.phone || 'Not set'}</strong>
+              </div>
+            </div>
+            <p className="spaced">
+              Workspace details are saved in your account. Editing will be added with the workspace
+              management API.
+            </p>
           </>
         )}
         {tab === 'Team' && (
           <>
             <h2>Workspace team</h2>
-            <p>Sample workspace members. Role permissions will be enforced by the backend.</p>
+            <p>Your actual workspace membership.</p>
             <div className="tablewrap">
               <table>
                 <thead>
@@ -198,18 +145,10 @@ export function Settings() {
                 <tbody>
                   <tr>
                     <td>
-                      Jamie Davis<small>jamie@example.com</small>
+                      {auth.user.display_name}
+                      <small>{auth.user.email}</small>
                     </td>
-                    <td>Owner</td>
-                    <td>
-                      <Badge>Active</Badge>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      Robin Parker<small>robin@example.com</small>
-                    </td>
-                    <td>Viewer</td>
+                    <td>{auth.memberships[0]?.role || 'Member'}</td>
                     <td>
                       <Badge>Active</Badge>
                     </td>
